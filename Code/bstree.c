@@ -75,6 +75,23 @@ BinarySearchTree* bstree_parent(const BinarySearchTree* t) {
     return t->parent;
 }
 
+BinarySearchTree* grandparent(BinarySearchTree* n){
+    assert(!bstree_empty(bstree_parent(n)));
+    return bstree_parent(bstree_parent(n));
+}
+
+BinarySearchTree* uncle(BinarySearchTree* n){
+    BinarySearchTree* gparent = grandparent(n);
+    assert(!bstree_empty(gparent));
+    if(bstree_left(gparent) == n->parent){
+        return bstree_right(gparent);
+    }
+    else{
+        return bstree_left(gparent);
+    }
+    
+}
+
 /*------------------------  BSTreeDictionary  -----------------------------*/
 
 /* Obligation de passer l'arbre par référence pour pouvoir le modifier */
@@ -123,6 +140,7 @@ void bstree_add(ptrBinarySearchTree* t, int v) {
     else{
         parent->left = newNode;
     }
+    fixredblack_insert(newNode);
 }
 
 const BinarySearchTree* bstree_search(const BinarySearchTree* t, int v) {
@@ -282,6 +300,70 @@ void bstree_iterative_depth_infix(const BinarySearchTree* t, OperateFunctor f, v
     
 }
 
+void leftrotate(BinarySearchTree *x){
+    assert(!bstree_empty(bstree_parent(x)));
+    BinarySearchTree* y = bstree_right(x) ;
+    assert(!bstree_empty(y));
+    BinarySearchTree* b = bstree_left(y);
+    
+    //Le parent de y devient le parent de x
+    y->parent = x->parent;
+    //x devient le fils gauche de y
+    y->left = x;
+    //Le parent de x est y
+    x->parent = y;
+    //Le fils droit de x est b
+    x->right = b;
+    //Le parent de b est x
+    b->parent = x;
+    
+    /*Parents de y*/
+    if(!bstree_empty(y->parent)){
+        if(y->parent->left == x){
+            y->parent->left = y;
+        }
+        else{
+            y->parent->right = y;
+        }
+    }
+    
+    
+    
+}
+
+void rightrotate(BinarySearchTree *y){
+    assert(!bstree_empty(y));
+    BinarySearchTree* x = bstree_left(y);
+    assert(!bstree_empty(x));
+    BinarySearchTree* b = bstree_right(x);
+    /*MAJ pointeurs*/
+    /*x*/
+    x->parent = y->parent;
+    x->right = y;
+    /*y*/
+    y->parent = x;
+    y->left = b;
+    /*b*/
+    b->parent = y;
+    
+    /*Parents de x*/
+    if(!bstree_empty(x->parent)){
+        if(x->parent->left == y){
+            x->parent->left = x;
+        }
+        else{
+            x->parent->right = x;
+        }
+    }
+}
+
+void testrotateleft(BinarySearchTree* t){
+    leftrotate(t);
+}
+void testrotateright( BinarySearchTree* t){
+    rightrotate(t) ;
+}
+
 /*------------------------  BSTreeIterator  -----------------------------*/
 
 struct _BSTreeIterator {
@@ -368,3 +450,82 @@ void bstree_node_to_dot(const BinarySearchTree* t, void* stream) {
                 bstree_key(t), bstree_key(t));
     }
 }
+
+bool is_root_child(BinarySearchTree* x){
+    assert(!bstree_empty(x));
+    if(!bstree_empty(x->parent) && bstree_empty(x->parent->parent)){
+        return true;
+    }
+    return false;
+}
+
+/*Declaration des fonctions de gestion de l'invariant*/
+
+BinarySearchTree* fixredblack_insert_case1(BinarySearchTree* x);
+BinarySearchTree* fixredblack_insert_case1(BinarySearchTree* x);
+BinarySearchTree* fixredblack_insert_case2(BinarySearchTree* x);
+
+/******************************************************/
+
+
+/*------------------------  BSTreeInvariants  -----------------------------*/
+BinarySearchTree* fixredblack_insert(BinarySearchTree* x){
+    //Un traitement est à effectuer si et seulement si x est rouge et x est le fils d'un noeud rouge
+    if((!bstree_empty(x) && x->color == red) && (!bstree_empty(x->parent) && x->parent->color == red)){
+        //Cas 0 : x est le fils de la racine
+        if(is_root_child(x)){
+            x->parent->color = black;
+            return x;
+        }
+        //Sinon traitement cas 1
+        else{
+            return fixredblack_insert_case1(x);
+        }
+    }
+    return x;
+}
+
+
+BinarySearchTree* fixredblack_insert_case1(BinarySearchTree* x){
+    //Verification existance oncle de x, comme le pere de x n'est pas la racine de l'arbre on verifie simplement que l'oncle n'est pas une feuille
+    if(!bstree_empty(uncle(x))){
+        BinarySearchTree* x_uncle = uncle(x);
+        if(x_uncle->color == red){
+            x->parent->color = black; //p devient noir
+            x_uncle->color = black;   //f devient noir 
+            x_uncle->parent = red;    //pp devient rouge
+            return fixredblack_insert(x_uncle->parent);
+        }
+    }
+    return fixredblack_insert_case2(x);
+}
+
+/**Fonctions intermediaire du cas 2**/
+BinarySearchTree* fixredblack_insert_case2_left(BinarySearchTree* x){
+    //Cas ou x est le fils gauche de p
+    BinarySearchTree* p = x->parent;
+    BinarySearchTree* pp = p->parent;
+    rightrotate(pp);
+    p->color = black;
+    pp->color = red;
+    return x;
+} 
+
+BinarySearchTree* fixredblack_insert_case2_right(BinarySearchTree* x){
+    BinarySearchTree* p = x->parent;
+    leftrotate(p);
+    return fixredblack_insert_case2_left(p); //A VOIR PEUT ETRE X
+}
+
+/********************************************/
+BinarySearchTree* fixredblack_insert_case2(BinarySearchTree* x){
+    //Cas x est le fils gauche de p
+    if(x->parent->left == x){
+        return fixredblack_insert_case2_left(x);
+    }
+    //Cas x est le fils droit de p
+    else{
+        return fixredblack_insert_case2_right(x);
+    }
+}
+

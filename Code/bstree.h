@@ -231,4 +231,6 @@ void testrotateright(BinarySearchTree* t);
 /** @} */
 
 void bstree_node_to_dot(const BinarySearchTree* t, void* stream);
+
+BinarySearchTree* fixredblack_insert(BinarySearchTree* x);
 #endif
